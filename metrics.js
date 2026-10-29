@@ -2,6 +2,8 @@
 (() => {
   if (navigator.doNotTrack === '1' || navigator.globalPrivacyControl) return;
   const script = document.currentScript;
+  // Measure the public GitHub directory, not the owner's hosted preview.
+  if (location.origin === new URL(script.src).origin) return;
   const endpoint = new URL('/api/analytics/collect', script.src).href;
   const visit = crypto.randomUUID();
   let visitor = crypto.randomUUID();

@@ -84,8 +84,11 @@ function applyFilters(save=true){
   render();
   const otherStatus=status==='documented'?'upcoming':'documented';
   const otherCount=terms.length?records.filter(r=>statusKey(r)===otherStatus&&matches(r,terms)).length:0;
-  $('otherStatusMatches').hidden=!otherCount;
-  $('otherStatusMatches').innerHTML=otherCount?'<button type="button" class="textbutton" data-other-status="'+otherStatus+'">'+otherCount+' '+(otherCount===1?'match':'matches')+' in '+(otherStatus==='upcoming'?'Upcoming':'Documented')+' →</button><span>Uses your current search and filters.</span>':'';
+  const otherPanel=$('otherStatusMatches');
+  if(otherPanel){
+    otherPanel.hidden=!otherCount;
+    otherPanel.innerHTML=otherCount?'<button type="button" class="textbutton" data-other-status="'+otherStatus+'">'+otherCount+' '+(otherCount===1?'match':'matches')+' in '+(otherStatus==='upcoming'?'Upcoming':'Documented')+' →</button><span>Uses your current search and filters.</span>':'';
+  }
   renderResearchMatches(terms);
   if(save)saveView();
 }
@@ -110,6 +113,7 @@ function renderResearchMatches(terms){
     return Number(exact(b))-Number(exact(a))||a.name.localeCompare(b.name);
   }).slice(0,5):[];
   const panel=$('researchMatches');
+  if(!panel)return;
   panel.hidden=!candidates.length;
   panel.innerHTML=candidates.length?'<h3>Research match — Duo support not established</h3><p>These app-name matches are outside the Documented and Upcoming counts. Missing support evidence does not mean failure or incompatibility.</p>'+candidates.map(r=>'<article class="research-result"><div><h4><a href="'+esc(viewUrl(r.app_id))+'" data-detail="'+esc(r.app_id)+'">'+esc(r.name)+'</a></h4><p>'+esc(r.category)+'</p>'+pricingBadges(r)+'</div><div class="research-actions"><a href="'+esc(viewUrl(r.app_id))+'" data-detail="'+esc(r.app_id)+'">Details &amp; sources</a><button type="button" data-report-app="'+esc(r.app_id)+'">Report experience</button></div></article>').join('')+($('category').value||$('feature').value||$('detailed').checked?'<p class="research-filter-note">Category and capability filters do not apply to these app-name research matches.</p>':''):'';
   $('empty').hidden=filtered.length>0||candidates.length>0;
@@ -124,15 +128,17 @@ function activeFilterItems(){
 }
 function renderControls(){
   const items=activeFilterItems();
-  $('activeFilters').hidden=!items.length;
-  $('activeFilters').innerHTML=items.map(([key,label])=>'<button type="button" data-remove-filter="'+key+'" aria-label="Remove '+esc(label)+' filter">'+esc(label)+' <span aria-hidden="true">×</span></button>').join('');
-  $('filterCount').hidden=!items.length;
-  $('filterCount').textContent=String(items.length);
-  $('filtersToggle').setAttribute('aria-label','Filters'+(items.length?', '+items.length+' active':''));
+  const activePanel=$('activeFilters'),count=$('filterCount');
+  if(activePanel){
+    activePanel.hidden=!items.length;
+    activePanel.innerHTML=items.map(([key,label])=>'<button type="button" data-remove-filter="'+key+'" aria-label="Remove '+esc(label)+' filter">'+esc(label)+' <span aria-hidden="true">×</span></button>').join('');
+  }
+  if(count){count.hidden=!items.length;count.textContent=String(items.length)}
+  $('filtersToggle')?.setAttribute('aria-label','Filters'+(items.length?', '+items.length+' active':''));
   document.querySelectorAll('[data-feature-shortcut]').forEach(button=>button.setAttribute('aria-pressed',String($('feature').value===button.dataset.featureShortcut)));
-  $('describedShortcut').setAttribute('aria-pressed',String($('detailed').checked));
-  $('recentShortcut').setAttribute('aria-pressed',String($('sort').value==='recent'));
-  $('recentNote').hidden=$('sort').value!=='recent';
+  $('describedShortcut')?.setAttribute('aria-pressed',String($('detailed').checked));
+  $('recentShortcut')?.setAttribute('aria-pressed',String($('sort').value==='recent'));
+  if($('recentNote'))$('recentNote').hidden=$('sort').value!=='recent';
 }
 
 function card(r){const support=r.earliest_visible_support_note_version;const version=support?'Support note v'+support:r.latest_inspected_version?'Inspected v'+r.latest_inspected_version:'Version unspecified';const when=support?r.earliest_visible_support_note_date:r.latest_inspected_version_date;return `<article class="app-row"><div class="row-app">${icon(r)}<div><h3><a href="${esc(viewUrl(r.app_id))}" data-detail="${esc(r.app_id)}">${esc(r.name)}</a></h3><p>${esc(r.category)}</p>${pricingBadges(r)}</div></div><div class="row-support">${statusKey(r)==='upcoming'?'<strong class="future-label">Announced / rollout unverified</strong>':''}<p>${esc(summary(r))}</p>${$("sort").value==="recent"?changeMarkup(r):""}</div><div class="row-evidence"><strong>${esc(evidenceLabel(r))}</strong><p>${esc(version)}${when?'<br>'+date(when):''}</p></div><div class="row-actions"><a class="evidence-link" href="${esc(viewUrl(r.app_id))}" data-detail="${esc(r.app_id)}" aria-label="Details and sources for ${esc(r.name)}">Details & sources</a><a class="store-link" href="${url(r.app_store_url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(r.name)} on the App Store">App Store ↗</a></div></article>`;}
@@ -180,7 +186,7 @@ function closeRenderedDetail(){
   if($('detailDialog').open)$('detailDialog').close();
   document.title='Duo App Index';
   if(returnFocus?.isConnected&&!['BODY','HTML'].includes(returnFocus.tagName))returnFocus.focus();
-  else if(previous)($('apps').querySelector('[data-detail="'+previous+'"]')||$('researchMatches').querySelector('[data-detail="'+previous+'"]')||$('search')).focus();
+  else if(previous)($('apps').querySelector('[data-detail="'+previous+'"]')||$('researchMatches')?.querySelector('[data-detail="'+previous+'"]')||$('search')).focus();
 }
 function requestCloseDetail(){
   if(!currentApp)return;
@@ -218,22 +224,21 @@ async function copy(text){
 }
 function updateReportFields(){
   const reporting=$('suggestType').value==='Hands-on test report';
-  $('reportFields').hidden=!reporting;
+  if($('reportFields'))$('reportFields').hidden=!reporting;
   for(const id of ['reportAppVersion','reportIosVersion','reportScreen']){
-    $(id).required=reporting;
-    $(id).disabled=!reporting;
+    if($(id)){$(id).required=reporting;$(id).disabled=!reporting}
   }
-  $('reportDate').disabled=!reporting;
+  if($('reportDate'))$('reportDate').disabled=!reporting;
   $('suggestNotes').maxLength=reporting?2500:3000;
-  $('suggestNotesLabel').textContent=reporting?'What worked or failed?':'What should we know?';
-  $('suggestNotes').placeholder=reporting?'Describe what you observed on that screen and position. Distinguish unused app canvas from bars inside a video.':'Describe the Duo feature or correction.';
+  if($('suggestNotesLabel'))$('suggestNotesLabel').textContent=reporting?'What worked or failed?':'What should we know?';
+  $('suggestNotes').placeholder=reporting?($('reportFields')?'Describe what you observed on that screen and position. Distinguish unused app canvas from bars inside a video.':'Include app and iOS versions, screen, orientation, folded position and what you observed. Leave out personal information.'):'Describe the Duo feature or correction.';
 }
 function openSuggestion(record=null){
   $('suggestResult').textContent='';
   if(record){
     if($('suggestName').value!==record.name){
       $('suggestNotes').value='';
-      for(const id of ['reportAppVersion','reportIosVersion','reportScreen','reportDate'])$(id).value='';
+      for(const id of ['reportAppVersion','reportIosVersion','reportScreen','reportDate'])if($(id))$(id).value='';
     }
     $('suggestType').value='Hands-on test report';
     $('suggestName').value=record.name;
@@ -245,18 +250,18 @@ function openSuggestion(record=null){
 function suggestionNotes(){
   const notes=$('suggestNotes').value.trim();
   if($('suggestType').value!=='Hands-on test report')return notes;
-  const lines=[
-    'App version: '+$('reportAppVersion').value.trim(),
-    'iOS version: '+$('reportIosVersion').value.trim(),
-    'Screen / orientation / folded position: '+$('reportScreen').value.trim()
-  ];
-  if($('reportDate').value)lines.push('Test date: '+$('reportDate').value);
+  const lines=[];
+  for(const [id,label] of [['reportAppVersion','App version'],['reportIosVersion','iOS version'],['reportScreen','Screen / orientation / folded position']]){
+    if($(id)?.value.trim())lines.push(label+': '+$(id).value.trim());
+  }
+  if($('reportDate')?.value)lines.push('Test date: '+$('reportDate').value);
+  if(!lines.length)return notes;
   lines.push('Observed behavior:\n'+notes);
   return lines.join('\n');
 }
 async function init(){
   try{
-    const response=await fetch('data.json');
+    const response=await fetch('data.json?v=4264185a31d47a27');
     if(!response.ok)throw Error('Index unavailable');
     data=await response.json();
     detailRecords=data.records.map(r=>({...r,nameSearch:normalize([r.name,r.app_id].join(' ')),searchText:normalize([r.name,r.app_id,r.category,r.app_store_category,r.duo_notes,...r.documented_features].join(' '))}));
@@ -285,20 +290,20 @@ document.querySelectorAll('[data-status]').forEach(button=>button.addEventListen
   status=button.dataset.status;
   applyFilters();
 }));
-$('filtersToggle').onclick=()=>{
+$('filtersToggle')?.addEventListener('click',()=>{
   const open=$('filtersToggle').getAttribute('aria-expanded')!=='true';
   $('filtersToggle').setAttribute('aria-expanded',String(open));
-  $('filterPanel').classList.toggle('filters-open',open);
-};
-$('describedShortcut').onclick=()=>{
+  $('filterPanel')?.classList.toggle('filters-open',open);
+});
+$('describedShortcut')?.addEventListener('click',()=>{
   status='documented';
   $('detailed').checked=!$('detailed').checked;
   applyFilters();
-};
-$('recentShortcut').onclick=()=>{
+});
+$('recentShortcut')?.addEventListener('click',()=>{
   $('sort').value=$('sort').value==='recent'?'name':'recent';
   applyFilters();
-};
+});
 $('reset').onclick=reset;
 $('emptyReset').onclick=reset;
 $('loadMore').onclick=()=>{
@@ -335,7 +340,7 @@ document.addEventListener('click',event=>{
     if(id==='detailed')$('detailed').checked=false;
     else if(['category','feature','sort'].includes(id))$(id).value=id==='sort'?'name':'';
     applyFilters();
-    const next=$('activeFilters').querySelector('button');
+    const next=$('activeFilters')?.querySelector('button');
     (next||$('search')).focus();
   }
 });
